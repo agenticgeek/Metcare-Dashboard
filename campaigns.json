@@ -1,0 +1,120 @@
+{
+ "_help": "Each campaign groups contacts whose tags match any regex (case-insensitive). Edit and save; the dashboard reloads it.",
+ "campaigns": [
+  {
+   "name": "Octobre Rose",
+   "tags": [
+    "rose"
+   ]
+  },
+  {
+   "name": "Masterclass Praticienne",
+   "tags": [
+    "praticienne",
+    "pro-lead-masterclass",
+    "programme master class"
+   ]
+  },
+  {
+   "name": "Masterclass Infirmière / Kiné",
+   "tags": [
+    "infirmi",
+    "kin[eé]"
+   ]
+  },
+  {
+   "name": "Patient Expert / Patient tunnel",
+   "tags": [
+    "patient expert",
+    "patient_expert",
+    "patient tunnel",
+    "patient-lead",
+    "patient-qualifie",
+    "optin patient"
+   ]
+  },
+  {
+   "name": "Webinaires",
+   "tags": [
+    "webinaire"
+   ]
+  },
+  {
+   "name": "Post-Op Repair",
+   "tags": [
+    "post.?op repair"
+   ]
+  },
+  {
+   "name": "Brazil Retreat / Destinations",
+   "tags": [
+    "destination",
+    "guide (albanie|br[eé]sil|espagne|thailande)",
+    "brazil"
+   ]
+  },
+  {
+   "name": "Appel des Âmes",
+   "tags": [
+    "appel des (ames|âmes)",
+    "r[eé]servation appel"
+   ]
+  },
+  {
+   "name": "My IA",
+   "tags": [
+    "my ia",
+    "ia assistant",
+    "^\\[ia\\]"
+   ]
+  },
+  {
+   "name": "Full Body / Initiation (e-learning)",
+   "tags": [
+    "full.?body",
+    "initiation",
+    "prevente",
+    "360ide"
+   ]
+  },
+  {
+   "name": "Coaching Pro",
+   "tags": [
+    "coaching"
+   ]
+  },
+  {
+   "name": "Black Friday",
+   "tags": [
+    "black friday"
+   ]
+  },
+  {
+   "name": "Partenaires (Alma, Dohane)",
+   "tags": [
+    "alma",
+    "dohane"
+   ]
+  },
+  {
+   "name": "Site / Newsletter / Contact",
+   "tags": [
+    "newsletter",
+    "site internet",
+    "formulaire de contact"
+   ]
+  },
+  {
+   "name": "Shop (Shopify)",
+   "tags": [
+    "shopify"
+   ]
+  },
+  {
+   "name": "Chirurgiens (liste)",
+   "tags": [
+    "surgeons"
+   ]
+  }
+ ]
+}

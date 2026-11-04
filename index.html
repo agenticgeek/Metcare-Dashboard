@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>METCARE Live Tracking</title>
+<style>
+:root{
+  color-scheme:light;
+  --page:#f1f1ee; --surface:#fcfcfb; --line:#e3e2dd; --grid:#ecebe7;
+  --ink:#0b0b0b; --ink2:#52514e; --ink3:#8a8984;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --none:#c9c8c2;
+  --good:#0a7a3d; --bad:#c0392b; --warn:#9a6700; --brand:#7a2547;
+}
+@media (prefers-color-scheme:dark){:root:where(:not([data-theme="light"])){
+  color-scheme:dark;
+  --page:#121211; --surface:#1a1a19; --line:#2d2d2b; --grid:#262624;
+  --ink:#f0efec; --ink2:#c3c2b7; --ink3:#8d8c85;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --none:#4a4a46;
+  --good:#4cc283; --bad:#ef7b6d; --warn:#e0a93a; --brand:#d78aa8;
+}}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --page:#121211; --surface:#1a1a19; --line:#2d2d2b; --grid:#262624;
+  --ink:#f0efec; --ink2:#c3c2b7; --ink3:#8d8c85;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --none:#4a4a46;
+  --good:#4cc283; --bad:#ef7b6d; --warn:#e0a93a; --brand:#d78aa8;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+.shell{display:grid;grid-template-columns:240px minmax(0,1fr);min-height:100vh}
+aside{position:sticky;top:0;height:100vh;background:var(--surface);border-right:1px solid var(--line);padding:18px 12px;display:flex;flex-direction:column;gap:4px;overflow-y:auto}
+.brand{font-weight:700;font-size:15px;padding:2px 10px 2px}
+.brand small{display:block;font-weight:400;color:var(--ink3);font-size:11.5px;margin-top:2px}
+.navlbl{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);padding:16px 10px 4px}
+nav{display:flex;flex-direction:column;gap:2px}
+nav button{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;background:none;color:var(--ink2);font:inherit;text-align:left;padding:9px 10px;border-radius:8px;cursor:pointer}
+nav button:hover{background:var(--grid)}
+nav button[aria-current=page]{background:var(--ink);color:var(--surface)}
+nav .bd{font-size:11.5px;font-variant-numeric:tabular-nums;color:var(--ink3);white-space:nowrap}
+nav button[aria-current=page] .bd{color:var(--surface);opacity:.75}
+.snap{margin-top:auto;padding:12px 10px 0;border-top:1px solid var(--line);font-size:12px;color:var(--ink2)}
+.snap div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.snap b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.content{padding:0 20px 48px;min-width:0}
+.wrap{max-width:1180px;margin:0 auto}
+header{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:center;justify-content:space-between;padding:20px 0 12px}
+h1{font-size:18px;margin:0;font-weight:650}
+h1 small{display:block;font-weight:400;color:var(--ink3);font-size:12px;margin-top:2px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink2);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:3px 10px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.chip.err .dot{background:var(--bad)} .chip.err{color:var(--bad)}
+.live{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink2)}
+.live .dot{animation:pulse 2s infinite}
+@keyframes pulse{50%{opacity:.25}}
+.bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 16px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.seg button{border:0;background:none;color:var(--ink2);padding:6px 14px;font:inherit;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--surface)}
+label.tg{display:inline-flex;gap:6px;align-items:center;color:var(--ink2);font-size:13px;cursor:pointer}
+.range{margin-left:auto;color:var(--ink3);font-size:12px}
+body[data-view=contacts] #seg{display:none}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}
+.kpi{background:var(--surface);padding:14px 16px}
+.kpi .l{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3)}
+.kpi .v{font-size:28px;font-weight:650;margin:4px 0 2px;font-variant-numeric:tabular-nums}
+.kpi .s{font-size:12px;color:var(--ink2)}
+.up{color:var(--good)} .dn{color:var(--bad)} .flat{color:var(--ink3)}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px;margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.c12{grid-column:span 12}.c8{grid-column:span 8}.c6{grid-column:span 6}.c4{grid-column:span 4}
+.card h2{font-size:14px;margin:0 0 2px;font-weight:650}
+.card p.sub{margin:0 0 12px;color:var(--ink3);font-size:12px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--ink2);margin:0 0 6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{fill:var(--ink3);font-size:10.5px}
+.hb{display:grid;grid-template-columns:minmax(80px,38%) 1fr auto;gap:8px;align-items:center;margin:5px 0;font-size:12.5px}
+.hb .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink2)}
+.hb .tr{height:8px;background:var(--grid);border-radius:4px}
+.hb .fl{height:8px;border-radius:0 4px 4px 0;background:var(--s1)}
+.hb .n{font-variant-numeric:tabular-nums;color:var(--ink);min-width:2.5ch;text-align:right}
+.stack{display:flex;height:14px;border-radius:7px;overflow:hidden;gap:2px;margin:6px 0 10px;background:var(--grid)}
+.stack i{display:block;height:100%}
+.rows .r{display:grid;grid-template-columns:12px 1fr auto 52px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--grid);font-size:12.5px}
+.rows .r:last-child{border:0}
+.rows .r i{width:10px;height:10px;border-radius:2px;display:block}
+.rows .r .p{color:var(--ink3);text-align:right;font-variant-numeric:tabular-nums}
+.rows .r .n{font-variant-numeric:tabular-nums;text-align:right}
+.rows .sep{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);padding:10px 0 2px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th{text-align:right;font-weight:500;color:var(--ink3);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th.sort{cursor:pointer} th.sort:hover{color:var(--ink)}
+td{text-align:right;padding:7px 10px;border-bottom:1px solid var(--grid);font-variant-numeric:tabular-nums;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+td.nm{max-width:260px;overflow:hidden;text-overflow:ellipsis}
+tr.click{cursor:pointer} tr.click:hover td{background:var(--grid)}
+tr.tot td{font-weight:650;border-top:1px solid var(--line)}
+.stages{white-space:normal;text-align:left!important;padding:6px 10px 12px}
+.stages span{display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border:1px solid var(--line);border-radius:999px;font-size:11.5px;color:var(--ink2)}
+.stages b{color:var(--ink)}
+.list{margin:0;padding:0;list-style:none}
+.list li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--grid);font-size:12.5px}
+.list li:last-child{border:0}
+.list .m{color:var(--ink3);font-size:11.5px}
+.tag{display:inline-block;font-size:11px;padding:1px 7px;border:1px solid var(--line);border-radius:999px;color:var(--ink2);margin-left:4px}
+.warn{color:var(--warn)} .bad{color:var(--bad)}
+.note{font-size:12px;color:var(--ink2);margin-top:10px;padding:8px 10px;border-left:3px solid var(--s4);background:var(--grid);border-radius:0 6px 6px 0}
+.view[hidden]{display:none}
+#tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--surface);padding:6px 9px;border-radius:6px;font-size:12px;line-height:1.35;opacity:0;transition:opacity .08s;z-index:9;white-space:nowrap}
+#loading{padding:60px 0;text-align:center;color:var(--ink3)}
+.err-banner{background:var(--grid);border:1px solid var(--bad);color:var(--bad);padding:8px 12px;border-radius:8px;margin-bottom:12px;display:none}
+@media(max-width:1000px){.c8,.c6,.c4{grid-column:span 12}}
+@media(max-width:860px){
+  .shell{grid-template-columns:1fr}
+  aside{position:static;height:auto;flex-direction:column;border-right:0;border-bottom:1px solid var(--line);padding:12px 16px}
+  nav{flex-direction:row;overflow-x:auto;gap:6px}
+  nav button{white-space:nowrap;border:1px solid var(--line)}
+  .navlbl,.snap{display:none}
+  .content{padding:0 16px 48px}
+}
+</style>
+</head>
+<body data-view="overview">
+<div class="shell">
+<aside>
+  <div class="brand">METCARE®<small>Live tracking · GoHighLevel</small></div>
+  <div class="navlbl" data-t="Metrics">Metrics</div>
+  <nav id="nav">
+    <button data-v="overview" aria-current="page"><span class="nl">Overview</span><span class="bd" id="b-overview"></span></button>
+    <button data-v="campaigns"><span class="nl">Campaigns</span><span class="bd" id="b-campaigns"></span></button>
+    <button data-v="finance"><span class="nl">Finances</span><span class="bd" id="b-finance"></span></button>
+    <button data-v="pipelines"><span class="nl">Pipelines</span><span class="bd" id="b-pipelines"></span></button>
+    <button data-v="contacts"><span class="nl">Contact database</span><span class="bd" id="b-contacts"></span></button>
+  </nav>
+  <div class="snap" id="snap"></div>
+</aside>
+<div class="content"><div class="wrap">
+<header>
+  <h1><span id="vtitle">Overview</span><small>myesthetictravel.com · GoHighLevel · read-only</small></h1>
+  <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <div class="seg" id="lang" aria-label="Language"><button data-l="en">EN</button><button data-l="fr">FR</button></div>
+    <div class="chips" id="chips"></div>
+    <span class="live"><span class="dot"></span><span id="upd">connecting…</span></span>
+  </div>
+</header>
+<div class="bar">
+  <div class="seg" id="seg">
+    <button data-d="1">Today</button><button data-d="7">7 days</button><button data-d="30" aria-pressed="true">30 days</button><button data-d="90">90 days</button>
+  </div>
+  <label class="tg"><input type="checkbox" id="test" checked> <span class="lbl">Exclude test contacts</span></label>
+  <label class="tg"><input type="checkbox" id="imp" checked> <span class="lbl">Exclude CSV imports</span> <span id="impn" style="color:var(--ink3)"></span></label>
+  <span class="range" id="range"></span>
+</div>
+<div class="err-banner" id="errb"></div>
+<div id="loading">Loading live data from GoHighLevel… the first sync takes about a minute.</div>
+<main id="app" hidden>
+
+<!-- ============ OVERVIEW ============ -->
+<div class="view" data-view="overview">
+  <section class="kpis" id="kpis"></section>
+  <div class="grid">
+    <div class="card c8"><h2>Leads and bookings per day</h2><p class="sub">New contacts created vs. appointments booked (by the day they were booked).</p>
+      <div class="legend"><span><i style="background:var(--s1)"></i>Leads</span><span><i style="background:var(--s2)"></i>Bookings</span></div>
+      <div id="ch1"></div></div>
+    <div class="card c4"><h2>Appointment outcomes</h2><p class="sub">Meetings scheduled in the period.</p><div id="outcomes"></div><div id="outnote"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card c8"><h2>Revenue per day</h2><p class="sub">Successful payments minus refunds (GHL transactions), EUR.</p><div id="ch2"></div></div>
+    <div class="card c4"><h2>Payments</h2><p class="sub">By transaction status in the period.</p><div class="tblwrap" id="paystat"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card c8"><h2>Appointments by calendar</h2><p class="sub">Meetings scheduled in the period, with status as marked in GHL.</p><div class="tblwrap" id="cals"></div></div>
+    <div class="card c4"><h2>Next appointments</h2><p class="sub">Upcoming, Paris time.</p><ul class="list" id="upc"></ul></div>
+  </div>
+  <div class="grid">
+    <div class="card c4"><h2>Lead source</h2><p class="sub">GHL “source” field on new contacts.</p><div id="src"></div></div>
+    <div class="card c4"><h2>Segments (tags)</h2><p class="sub">Most common tags on new contacts.</p><div id="seg2"></div></div>
+    <div class="card c4"><h2>Country</h2><p class="sub">From phone prefix.</p><div id="ctry"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card c4"><h2>Tracking health</h2><p class="sub">Share of new contacts carrying each signal. Low = ROAS can’t be trusted yet.</p><div id="health"></div></div>
+    <div class="card c4"><h2>Conversations</h2><p class="sub">Channel of the 100 most recent conversations.</p><div id="chan"></div></div>
+    <div class="card c4"><h2>Latest leads</h2><p class="sub">Names shortened; no contact details leave the server.</p><ul class="list" id="leads"></ul></div>
+  </div>
+</div>
+
+<!-- ============ CAMPAIGNS ============ -->
+<div class="view" data-view="campaigns" hidden>
+  <section class="kpis" id="ckpis"></section>
+  <div class="grid">
+    <div class="card c6"><h2>Leads by campaign</h2><p class="sub">New contacts in the period carrying the campaign’s tags.</p><div id="c-leads"></div></div>
+    <div class="card c6"><h2>Revenue by campaign</h2><p class="sub">Payments received in the period from contacts tagged to the campaign.</p><div id="c-rev"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card c12"><h2>Campaign performance</h2><p class="sub">Click a column to sort. One contact can belong to several campaigns, so rows do not add up to the totals.</p>
+      <div class="tblwrap" id="ctable"></div>
+      <div class="note" id="cnote"></div></div>
+  </div>
+</div>
+
+<!-- ============ FINANCES ============ -->
+<div class="view" data-view="finance" hidden>
+  <section class="kpis" id="fkpis"></section>
+  <div class="grid">
+    <div class="card c8"><h2>Payments received per month</h2><p class="sub">Last 12 months, successful payments minus refunds, EUR.</p><div id="f-month"></div></div>
+    <div class="card c4"><h2>Payment method</h2><p class="sub">Received in the period, by provider.</p><div id="f-method"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card c8"><h2>Payments received per day</h2><p class="sub">Successful payments minus refunds, EUR.</p><div id="f-day"></div></div>
+    <div class="card c4"><h2>Status of all transactions</h2><p class="sub">Created in the period.</p><div class="tblwrap" id="f-status"></div><div id="f-note"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card c6"><h2>Top products / payment links</h2><p class="sub">Revenue by payment source in the period.</p><div class="tblwrap" id="prod"></div></div>
+    <div class="card c6"><h2>Largest payments</h2><p class="sub">Biggest successful payments in the period.</p><ul class="list" id="f-top"></ul></div>
+  </div>
+  <div class="grid">
+    <div class="card c12"><h2>Latest payments</h2><p class="sub">Most recent transactions of any status.</p><ul class="list" id="pays"></ul></div>
+  </div>
+</div>
+
+<!-- ============ PIPELINES ============ -->
+<div class="view" data-view="pipelines" hidden>
+  <section class="kpis" id="pkpis"></section>
+  <div class="grid">
+    <div class="card c6"><h2>Open opportunities by pipeline</h2><p class="sub">Current snapshot (not limited to the period).</p><div id="p-open"></div></div>
+    <div class="card c6"><h2>Lost opportunities by pipeline</h2><p class="sub">Marked lost, plus open deals parked in lost-type stages (current).</p><div id="p-lost"></div></div>
+  </div>
+  <div class="grid">
+    <div class="card c12"><h2>All pipelines</h2><p class="sub">New, won and lost count the period; open, stale and “lost all time” are current totals. Click a row for stage counts.</p><div class="tblwrap" id="pipes"></div></div>
+  </div>
+</div>
+
+<!-- ============ CONTACT DATABASE ============ -->
+<div class="view" data-view="contacts" hidden>
+  <section class="kpis" id="dkpis"></section>
+  <div class="grid">
+    <div class="card c4"><h2>Email addresses</h2><p class="sub">Format-checked and not flagged bounced / spam in GHL.</p><div id="d-email"></div></div>
+    <div class="card c4"><h2>Phone numbers</h2><p class="sub">Checked against each country’s number format and length.</p><div id="d-phone"></div></div>
+    <div class="card c4"><h2>WhatsApp numbers</h2><p class="sub">Estimated from number type; WhatsApp can’t be verified without sending.</p><div id="d-wa"></div></div>
+  </div>
+  <div class="note" id="d-note"></div>
+</div>
+
+</main>
+</div></div>
+</div>
+<div id="tip"></div>
+<script>
+const $=id=>document.getElementById(id);
+/* ---------- i18n: English text is the key, FR is the translation ---------- */
+const FR={
+ 'myesthetictravel.com · GoHighLevel · read-only':'myesthetictravel.com · GoHighLevel · lecture seule','Live tracking · GoHighLevel':'Suivi en direct · GoHighLevel',
+ 'Metrics':'Indicateurs','Overview':'Vue d’ensemble','Campaigns':'Campagnes','Finances':'Finances','Pipelines':'Pipelines','Contact database':'Base de contacts',
+ 'Today':"Aujourd’hui",'7 days':'7 jours','30 days':'30 jours','90 days':'90 jours',
+ 'Exclude test contacts':'Exclure les contacts de test','Exclude CSV imports':'Exclure les imports CSV','{n} in period':'{n} sur la période',
+ 'Loading live data from GoHighLevel… the first sync takes about a minute.':'Chargement des données GoHighLevel en direct… la première synchronisation prend environ une minute.',
+ 'Leads and bookings per day':'Leads et réservations par jour','New contacts created vs. appointments booked (by the day they were booked).':'Nouveaux contacts créés vs. rendez-vous réservés (selon le jour de la réservation).',
+ 'Leads':'Leads','Bookings':'Réservations','Opportunities':'Opportunités','Show rate':'Taux de présence','Revenue':'Revenus','Sales':'Ventes',
+ 'Appointment outcomes':'Résultats des rendez-vous','Meetings scheduled in the period.':'Rendez-vous prévus sur la période.',
+ 'Revenue per day':'Revenus par jour','Successful payments minus refunds (GHL transactions), EUR.':'Paiements réussis moins remboursements (transactions GHL), EUR.',
+ 'Payments':'Paiements','By transaction status in the period.':'Par statut de transaction sur la période.',
+ 'Appointments by calendar':'Rendez-vous par calendrier','Meetings scheduled in the period, with status as marked in GHL.':'Rendez-vous prévus sur la période, avec le statut saisi dans GHL.',
+ 'Next appointments':'Prochains rendez-vous','Upcoming, Paris time.':'À venir, heure de Paris.',
+ 'Lead source':'Source des leads','GHL “source” field on new contacts.':'Champ « source » de GHL sur les nouveaux contacts.',
+ 'Segments (tags)':'Segments (tags)','Most common tags on new contacts.':'Tags les plus fréquents sur les nouveaux contacts.',
+ 'Country':'Pays','From phone prefix.':'D’après l’indicatif téléphonique.',
+ 'Tracking health':'Qualité du suivi','Share of new contacts carrying each signal. Low = ROAS can’t be trusted yet.':'Part des nouveaux contacts portant chaque signal. Faible = le ROAS n’est pas encore fiable.',
+ 'Top products / payment links':'Top produits / liens de paiement','Revenue by payment source in the period.':'Revenus par source de paiement sur la période.',
+ 'Conversations':'Conversations','Channel of the 100 most recent conversations.':'Canal des 100 conversations les plus récentes.',
+ 'Latest leads':'Derniers leads','Names shortened; no contact details leave the server.':'Noms abrégés ; aucune coordonnée ne quitte le serveur.',
+ 'Latest payments':'Derniers paiements','Most recent transactions of any status.':'Transactions les plus récentes, tous statuts.',
+ // campaigns
+ 'Leads by campaign':'Leads par campagne','New contacts in the period carrying the campaign’s tags.':'Nouveaux contacts de la période portant les tags de la campagne.',
+ 'Revenue by campaign':'Revenus par campagne','Payments received in the period from contacts tagged to the campaign.':'Paiements reçus sur la période de contacts associés à la campagne.',
+ 'Campaign performance':'Performance des campagnes','Click a column to sort. One contact can belong to several campaigns, so rows do not add up to the totals.':'Cliquez sur une colonne pour trier. Un contact peut appartenir à plusieurs campagnes : les lignes ne s’additionnent donc pas.',
+ 'Campaign':'Campagne','Tagged (all time)':'Tagués (total)','Showed':'Présents','No-show':'Absents','New opps':'Nouv. opp.','Open':'Ouvertes','Won':'Gagnées','Lost':'Perdues','Open value':'Valeur ouverte',
+ 'Campaigns with leads':'Campagnes avec leads','Top campaign (revenue)':'Top campagne (revenus)','{a} leads · {b} tagged all time':'{a} leads · {b} tagués au total','{n} sales':'{n} ventes','none':'aucune',
+ 'Campaigns are groups of contacts whose GHL tags match the rules in campaigns.json (edit that file to add or rename campaigns). This is tag-based, not ad-click attribution. Meta ad spend is not connected, so there is no cost or ROAS per campaign yet.':'Les campagnes sont des groupes de contacts dont les tags GHL correspondent aux règles de campaigns.json (modifiez ce fichier pour ajouter ou renommer des campagnes). Il s’agit d’un regroupement par tags, pas d’une attribution au clic publicitaire. Les dépenses Meta ne sont pas connectées : pas encore de coût ni de ROAS par campagne.',
+ '(no campaign tag)':'(aucun tag de campagne)',
+ // finance
+ 'Payments received per month':'Paiements reçus par mois','Last 12 months, successful payments minus refunds, EUR.':'12 derniers mois, paiements réussis moins remboursements, EUR.',
+ 'Payment method':'Moyen de paiement','Received in the period, by provider.':'Reçus sur la période, par prestataire.',
+ 'Payments received per day':'Paiements reçus par jour','Successful payments minus refunds, EUR.':'Paiements réussis moins remboursements, EUR.',
+ 'Status of all transactions':'Statut de toutes les transactions','Created in the period.':'Créées sur la période.',
+ 'Largest payments':'Plus gros paiements','Biggest successful payments in the period.':'Plus gros paiements réussis sur la période.',
+ 'Received':'Reçu','Gross':'Brut','Refunded':'Remboursé','Pending':'En attente','Failed':'Échoués','Avg. ticket':'Panier moyen',
+ 'net of refunds':'net des remboursements','{n} successful payments':'{n} paiements réussis','{n} payments':'{n} paiements','refunds in period':'remboursements sur la période',
+ '{n} pending payments older than 7 days, worth {v}.':'{n} paiements en attente depuis plus de 7 jours, pour {v}.','paypal':'PayPal','stripe':'Stripe','payment_link':'Lien de paiement','other':'Autre',
+ // pipelines
+ 'Open opportunities by pipeline':'Opportunités ouvertes par pipeline','Current snapshot (not limited to the period).':'État actuel (non limité à la période).',
+ 'Lost opportunities by pipeline':'Opportunités perdues par pipeline','Marked lost, plus open deals parked in lost-type stages (current).':'Marquées perdues, plus les affaires ouvertes dans des étapes « perdu » (actuel).','No data.':'Aucune donnée.',
+ 'All pipelines':'Tous les pipelines','New, won and lost count the period; open, stale and “lost all time” are current totals. Click a row for stage counts.':'Nouvelles, gagnées et perdues portent sur la période ; ouvertes, en sommeil et « perdues au total » sont des totaux actuels. Cliquez sur une ligne pour voir les étapes.',
+ 'Open opportunities':'Opportunités ouvertes','Won (period)':'Gagnées (période)','Lost (period)':'Perdues (période)','Lost (all time)':'Perdues (total)','Stale open (>90 d)':'Ouvertes en sommeil (>90 j)',
+ 'pipeline value':'valeur du pipeline','{n} won in total':'{n} gagnées au total','older than 90 days':'de plus de 90 jours','Pipeline':'Pipeline','New':'Nouvelles','Stale':'En sommeil','Lost total':'Perdues total','Abandoned':'Abandonnées','Won value':'Valeur gagnée',
+ // contact database
+ 'Email addresses':'Adresses email','Format-checked and not flagged bounced / spam in GHL.':'Format vérifié et non signalées rebond / spam dans GHL.',
+ 'Phone numbers':'Numéros de téléphone','Checked against each country’s number format and length.':'Vérifiés selon le format et la longueur propres à chaque pays.',
+ 'WhatsApp numbers':'Numéros WhatsApp','Estimated from number type; WhatsApp can’t be verified without sending.':'Estimés d’après le type de numéro ; WhatsApp ne peut pas être vérifié sans envoi.',
+ 'Total contacts':'Contacts au total','Valid emails':'Emails valides','Missing email':'Email manquant','Valid phone numbers':'Numéros valides','WhatsApp-ready (est.)':'Prêts WhatsApp (est.)','No WhatsApp-capable number':'Sans numéro WhatsApp',
+ '{n} imports excluded':'{n} imports exclus','all contacts in the sub-account':'tous les contacts du sous-compte','of contacts':'des contacts','{n} with an email':'{n} avec un email','{n} with a phone':'{n} avec un téléphone',
+ 'Valid':'Valides','Malformed address':'Adresse mal formée','Likely typo in domain':'Faute probable dans le domaine','Flagged bounced / spam':'Signalés rebond / spam','Missing':'Manquants','Unsubscribed / opted out':'Désabonnés / opposition',
+ 'Valid mobile':'Mobile valide','Valid landline / other':'Fixe / autre valide','Valid (type unknown)':'Valide (type inconnu)','Invalid: no country code':'Invalide : sans indicatif pays','Invalid: wrong length':'Invalide : longueur incorrecte','Invalid: not a number':'Invalide : pas un numéro',
+ 'Likely WhatsApp-capable':'Probablement compatibles WhatsApp','Confirmed (WhatsApp used)':'Confirmés (WhatsApp utilisé)','Opted out of WhatsApp':'Opposition WhatsApp','Landline numbers':'Numéros fixes','Invalid numbers':'Numéros invalides','No phone number':'Sans numéro',
+ 'Valid = well-formed and not flagged by GHL as bounced or spam; this is not a deliverability check. Phone: format and length per country, no carrier lookup. WhatsApp: GHL can’t verify an account without sending a message, so “likely” means a valid mobile (or unknown-type) number, and “confirmed” counts contacts whose most recent conversation was on WhatsApp (a lower bound).':'Valide = bien formé et non signalé par GHL comme rebond ou spam ; ce n’est pas un test de délivrabilité. Téléphone : format et longueur par pays, sans interrogation d’opérateur. WhatsApp : GHL ne peut pas vérifier un compte sans envoyer de message ; « probable » signifie un mobile valide (ou de type inconnu) et « confirmé » compte les contacts dont la dernière conversation était sur WhatsApp (minimum).',
+ 'WhatsApp conversation scan failed, so “confirmed” shows 0.':'L’analyse des conversations WhatsApp a échoué : « confirmés » affiche 0.','This view covers the whole database, not the selected period.':'Cette vue porte sur toute la base, pas sur la période choisie.','Contact database is still syncing…':'La base de contacts est en cours de synchronisation…',
+ // dynamic
+ 'vs prior':'vs période préc.','new vs prior':'nouveau vs période préc.','flat vs prior':'stable vs période préc.',
+ '{a} showed · {b} no-show':'{a} présents · {b} absents','{n} pending':'{n} en attente',
+ 'Cancelled':'Annulés','Upcoming':'À venir','Not marked':'Non renseignés','Meetings':'Rendez-vous','Show %':'Présence %',
+ '<b>{n}</b> past appointments are still not marked Showed / No-show in GHL, so the show rate only covers {a} of {b} held meetings.':'<b>{n}</b> rendez-vous passés ne sont toujours pas marqués Présent / Absent dans GHL : le taux de présence ne couvre que {a} des {b} rendez-vous tenus.',
+ 'Status':'Statut','Count':'Nombre','Amount':'Montant','Refunded in period: {n}':'Remboursé sur la période : {n}','No transactions in this period.':'Aucune transaction sur cette période.',
+ 'pending':'en attente','failed':'échoué','succeeded':'réussi','refunded':'remboursé','partially_refunded':'partiellement remboursé','canceled':'annulé',
+ 'Calendar':'Calendrier','No meetings in this period.':'Aucun rendez-vous sur cette période.','Nothing scheduled.':'Rien de prévu.',
+ 'Has a source':'A une source','Has UTM / click attribution':'A une attribution UTM / clic','Tagged tunnel:<slug>':'Tag tunnel:<slug>','Looks like Meta paid':'Ressemble à du Meta payant','Has phone':'A un téléphone','Has email':'A un email',
+ 'Most new leads have no ad attribution, so Meta ROAS from the plan can’t be computed yet. Fix: UTM pattern on ads and a tunnel tag on every form workflow.':'La plupart des nouveaux leads n’ont pas d’attribution publicitaire : le ROAS Meta du plan ne peut pas encore être calculé. Correctif : modèle UTM sur les publicités et un tag de tunnel sur chaque workflow de formulaire.',
+ 'Source':'Source','No successful payments in this period.':'Aucun paiement réussi sur cette période.','No data in this period.':'Aucune donnée sur cette période.',
+ 'Pipelines & calendars':'Pipelines et calendriers','Contacts':'Contacts','Appointments':'Rendez-vous','Opportunities ':'Opportunités','Forms':'Formulaires',
+ 'just now':'à l’instant','{n} min ago':'il y a {n} min','{n} h ago':'il y a {n} h','{n} d ago':'il y a {n} j',
+ 'Last sync {ago} · {rows} rows · {ms} ms':'Dernière synchro {ago} · {rows} lignes · {ms} ms','failed ':'échec',
+ 'live · updated {t}':'en direct · mis à jour à {t}','connecting…':'connexion…','first sync running…':'première synchronisation en cours…','offline':'hors ligne',
+ 'Source unavailable, figures may be stale: ':'Source indisponible, les chiffres peuvent être périmés : ','Dashboard server unreachable: ':'Serveur du tableau de bord injoignable : ',
+ '{from} → {to} · Europe/Paris · EUR':'{from} → {to} · Europe/Paris · EUR',
+ 'Received (period)':'Reçu (période)','Open pipeline':'Pipeline ouvert','Contacts in total':'Contacts au total'
+};
+const TITLES={overview:'Overview',campaigns:'Campaigns',finance:'Finances',pipelines:'Pipelines',contacts:'Contact database'};
+let LANG='en';
+try{LANG=new URLSearchParams(location.search).get('lang')||localStorage.getItem('lang')||((navigator.language||'').toLowerCase().startsWith('fr')?'fr':'en')}catch(e){}
+const t=(k,v)=>{let s=(LANG==='fr'&&FR[k])||k;if(v)for(const x in v)s=s.split('{'+x+'}').join(v[x]);return s};
+const loc=()=>LANG==='fr'?'fr-FR':'en-GB';
+let nf,eur;
+function fmts(){nf=new Intl.NumberFormat(loc());eur=new Intl.NumberFormat(loc(),{style:'currency',currency:'EUR',maximumFractionDigits:0})}
+const pct=v=>v==null?'—':Math.round(v*100)+'%';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let days=30,timer,last=null,view='overview';
+const tip=$('tip');
+const setText=(el,s)=>{const n=el.lastChild;if(n&&n.nodeType===3)n.textContent=s;else el.textContent=s};
+function markStatic(){document.querySelectorAll('h2,p.sub,#seg button,#loading,.legend span,.tg .lbl,h1 small,.navlbl,.brand small,nav .nl').forEach(el=>{const n=el.lastChild;el.dataset.t=((n&&n.nodeType===3)?n.textContent:el.textContent).trim()})}
+function applyStatic(){document.documentElement.lang=LANG;document.querySelectorAll('[data-t]').forEach(el=>setText(el,t(el.dataset.t)));[...$('lang').children].forEach(b=>b.setAttribute('aria-pressed',b.dataset.l===LANG));$('vtitle').textContent=t(TITLES[view])}
+function showTip(e,html){tip.innerHTML=html;tip.style.opacity=1;const w=tip.offsetWidth;let x=e.clientX+14;if(x+w>innerWidth-8)x=e.clientX-w-14;tip.style.left=x+'px';tip.style.top=(e.clientY+14)+'px'}
+function hideTip(){tip.style.opacity=0}
+function delta(cur,prev){
+  if(!prev&&!cur)return `<span class="flat">— ${t('vs prior')}</span>`;
+  if(!prev)return `<span class="up">▲ ${t('new vs prior')}</span>`;
+  const p=(cur-prev)/prev*100; if(Math.abs(p)<0.5)return `<span class="flat">▬ ${t('flat vs prior')}</span>`;
+  return p>0?`<span class="up">▲ ${Math.round(p)}% ${t('vs prior')}</span>`:`<span class="dn">▼ ${Math.abs(Math.round(p))}% ${t('vs prior')}</span>`;
+}
+function kpi(l,v,s){return `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${s}</div></div>`}
+function chart(el,data,series,fmt,xfmt){
+  const W=760,H=240,L=56,R=8,T=10,B=24, w=W-L-R, h=H-T-B;
+  const max=Math.max(1,...data.flatMap(d=>series.map(s=>d[s.key])));
+  const nice=(m)=>{const p=Math.pow(10,Math.floor(Math.log10(m)));const f=m/p;return (f<=1?1:f<=2?2:f<=5?5:10)*p};
+  const top=nice(max), y=v=>T+h-(v/top)*h, step=w/data.length, bw=Math.max(2,Math.min(22,step*0.62));
+  const xl=xfmt||(d=>new Date(d.d+'T00:00').toLocaleDateString(loc(),{day:'numeric',month:'short'}));
+  const xt=xfmt||(d=>new Date(d.d+'T00:00').toLocaleDateString(loc(),{weekday:'short',day:'numeric',month:'short'}));
+  let g='';
+  for(let i=0;i<=4;i++){const v=top*i/4;g+=`<line x1="${L}" x2="${W-R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--grid)"/><text x="${L-6}" y="${y(v)+3}" text-anchor="end">${fmt?fmt(v):nf.format(v)}</text>`}
+  const every=Math.ceil(data.length/7);
+  data.forEach((d,i)=>{if((i%every===0&&data.length-1-i>=every/2)||(i===data.length-1&&(data.length-1)%every===0)){g+=`<text x="${L+step*i+step/2}" y="${H-6}" text-anchor="middle">${xl(d)}</text>`}});
+  series.filter(s=>s.type==='bar').forEach(s=>{data.forEach((d,i)=>{const v=d[s.key];if(!v)return;const x=L+step*i+(step-bw)/2,hh=(v/top)*h;g+=`<path d="M${x},${T+h}V${T+h-hh+3}a3,3 0 0 1 3,-3h${bw-6}a3,3 0 0 1 3,3V${T+h}z" fill="${s.color}"/>`})});
+  series.filter(s=>s.type==='line').forEach(s=>{
+    const pts=data.map((d,i)=>[L+step*i+step/2,y(d[s.key])]);
+    g+=`<polyline fill="none" stroke="${s.color}" stroke-width="2" stroke-linejoin="round" points="${pts.map(p=>p.join(',')).join(' ')}"/>`;
+    if(data.length<=45)data.forEach((d,i)=>{if(d[s.key])g+=`<circle cx="${pts[i][0]}" cy="${pts[i][1]}" r="3.5" fill="${s.color}" stroke="var(--surface)" stroke-width="2"/>`});
+  });
+  data.forEach((d,i)=>{g+=`<rect class="hit" data-i="${i}" x="${L+step*i}" y="${T}" width="${step}" height="${h}" fill="transparent"/>`});
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img">${g}</svg>`;
+  el.querySelectorAll('.hit').forEach(r=>{
+    const d=data[+r.dataset.i];
+    const html=`<b>${xt(d)}</b><br>`+series.map(s=>`<span style="color:${s.color}">●</span> ${s.label}: ${fmt?fmt(d[s.key]):nf.format(d[s.key])}`).join('<br>');
+    r.addEventListener('mousemove',e=>showTip(e,html));r.addEventListener('mouseleave',hideTip);
+  });
+}
+function hbars(el,rows,color,tr,fmt){
+  if(!rows.length||rows.every(r=>!r.n)){el.innerHTML=`<span class="m" style="color:var(--ink3)">${t('No data.')}</span>`;return}
+  const m=Math.max(...rows.map(r=>r.n))||1;
+  el.innerHTML=rows.map(r=>{const nm=tr?t(r.name):r.name;return `<div class="hb" title="${esc(nm)}"><span class="nm">${esc(nm)}</span><div class="tr"><div class="fl" style="width:${r.n/m*100}%;background:${color||'var(--s1)'}"></div></div><span class="n">${fmt?fmt(r.n):nf.format(r.n)}</span></div>`}).join('');
+}
+/* stacked share bar + legend rows. segs:[{label,n,color,sep?}] ; total = denominator for % */
+function stackRows(el,segs,total){
+  const tt=Math.max(total,1);
+  const bar=segs.filter(s=>!s.sep&&s.n>0&&s.inbar!==false).map(s=>`<i style="width:${s.n/tt*100}%;background:${s.color}" title="${esc(s.label)}: ${nf.format(s.n)}"></i>`).join('');
+  el.innerHTML=`<div class="stack">${bar}</div><div class="rows">`+segs.map(s=>s.sep?`<div class="sep">${esc(s.label)}</div>`:`<div class="r"><i style="background:${s.color}"></i><span>${esc(s.label)}</span><span class="n">${nf.format(s.n)}</span><span class="p">${(s.n/tt*100).toFixed(s.n/tt<.1&&s.n?1:0)}%</span></div>`).join('')+'</div>';
+}
+const when=s=>new Date(s).toLocaleString(loc(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'Europe/Paris'});
+const ago=s=>{const m=Math.round((Date.now()-new Date(s))/60000);return m<1?t('just now'):m<60?t('{n} min ago',{n:m}):m<1440?t('{n} h ago',{n:Math.round(m/60)}):t('{n} d ago',{n:Math.round(m/1440)})};
+const muted=s=>`<span style="color:var(--ink3)">${t(s)}</span>`;
+const monthLbl=d=>{const [y,m]=d.m.split('-');return new Date(+y,+m-1,1).toLocaleDateString(loc(),{month:'short',year:'2-digit'})};
+let campSort={k:'leads',dir:-1};
+
+function renderOverview(d){
+  const k=d.kpis;
+  $('kpis').innerHTML=
+    kpi(t('Leads'),nf.format(k.leads),delta(k.leads,k.leads_prev))+
+    kpi(t('Opportunities'),nf.format(k.opps),delta(k.opps,k.opps_prev))+
+    kpi(t('Bookings'),nf.format(k.bookings),delta(k.bookings,k.bookings_prev))+
+    kpi(t('Show rate'),pct(k.show_rate),t('{a} showed · {b} no-show',{a:k.showed,b:k.noshow}))+
+    kpi(t('Revenue'),eur.format(k.revenue),delta(k.revenue,k.revenue_prev))+
+    kpi(t('Sales'),nf.format(k.sales),t('{n} pending',{n:eur.format(k.pending)}));
+  chart($('ch1'),d.daily,[{key:'leads',label:t('Leads'),type:'bar',color:'var(--s1)'},{key:'bookings',label:t('Bookings'),type:'line',color:'var(--s2)'}]);
+  chart($('ch2'),d.daily,[{key:'revenue',label:t('Revenue'),type:'bar',color:'var(--s3)'}],v=>eur.format(v));
+  hbars($('outcomes'),[{name:'Showed',n:k.showed},{name:'No-show',n:k.noshow},{name:'Cancelled',n:k.cancelled},{name:'Upcoming',n:k.upcoming},{name:'Not marked',n:k.unmarked}],'var(--s1)',true);
+  $('outnote').innerHTML=k.unmarked>0?`<div class="note">${t('<b>{n}</b> past appointments are still not marked Showed / No-show in GHL, so the show rate only covers {a} of {b} held meetings.',{n:k.unmarked,a:k.showed+k.noshow,b:k.held-k.upcoming-k.cancelled})}</div>`:'';
+  $('paystat').innerHTML=statusTable(d);
+  $('cals').innerHTML=d.calendars.length?`<table><tr><th>${t('Calendar')}</th><th>${t('Meetings')}</th><th>${t('Showed')}</th><th>${t('No-show')}</th><th>${t('Cancelled')}</th><th>${t('Upcoming')}</th><th>${t('Not marked')}</th><th>${t('Show %')}</th></tr>${d.calendars.map(c=>`<tr><td class="nm">${esc(c.name)}</td><td>${c.total}</td><td>${c.showed}</td><td>${c.noshow}</td><td>${c.cancelled}</td><td>${c.upcoming}</td><td class="${c.unmarked?'warn':''}">${c.unmarked}</td><td>${pct(c.show_rate)}</td></tr>`).join('')}</table>`:muted('No meetings in this period.');
+  $('upc').innerHTML=d.upcoming.length?d.upcoming.map(u=>`<li><span>${esc(u.who)}<div class="m">${esc(u.cal)}</div></span><span class="m">${when(u.at)}</span></li>`).join(''):`<li class="m">${t('Nothing scheduled.')}</li>`;
+  hbars($('src'),d.sources);hbars($('seg2'),d.segments,'var(--s5)');hbars($('ctry'),d.countries,'var(--s4)');
+  const h=d.health,tt=Math.max(h.total,1),hr=[['Has a source',h.with_source],['Has UTM / click attribution',h.with_attribution],['Tagged tunnel:<slug>',h.with_tunnel_tag],['Looks like Meta paid',h.meta_paid],['Has phone',h.with_phone],['Has email',h.with_email]];
+  $('health').innerHTML=hr.map(([n,v])=>{const p=v/tt;return `<div class="hb"><span class="nm">${esc(t(n))}</span><div class="tr"><div class="fl" style="width:${p*100}%;background:${p<.3?'var(--s2)':p<.7?'var(--s4)':'var(--s3)'}"></div></div><span class="n">${Math.round(p*100)}%</span></div>`}).join('')+(h.with_attribution/tt<.3?`<div class="note">${t('Most new leads have no ad attribution, so Meta ROAS from the plan can’t be computed yet. Fix: UTM pattern on ads and a tunnel tag on every form workflow.')}</div>`:'');
+  hbars($('chan'),d.channels,'var(--s1)');
+  $('leads').innerHTML=d.recent_leads.map(l=>`<li><span>${esc(l.name)}<span class="tag">${esc(l.source)}</span>${l.tags.map(x=>`<span class="tag">${esc(x)}</span>`).join('')}</span><span class="m">${ago(l.at)}</span></li>`).join('');
+}
+function statusTable(d){
+  const ps=d.payments.by_status,k=d.kpis;
+  return ps.length?`<table><tr><th>${t('Status')}</th><th>${t('Count')}</th><th>${t('Amount')}</th></tr>${ps.map(r=>`<tr><td>${esc(t(r.status))}</td><td>${r.n}</td><td>${eur.format(r.amount)}</td></tr>`).join('')}</table>`+(k.refunded?`<div class="note">${t('Refunded in period: {n}',{n:eur.format(k.refunded)})}</div>`:''):muted('No transactions in this period.');
+}
+function renderCampaigns(d){
+  const rows=d.campaigns, real=rows.filter(c=>c.name!=='(no campaign tag)');
+  const withLeads=real.filter(c=>c.leads>0).length, top=[...real].sort((a,b)=>b.revenue-a.revenue)[0];
+  $('ckpis').innerHTML=
+    kpi(t('Campaigns with leads'),nf.format(withLeads),`${real.length} / ${real.length}`.replace(/.*/,t('{a} leads · {b} tagged all time',{a:nf.format(d.kpis.leads),b:nf.format(real.reduce((s,c)=>s+c.tagged,0))})))+
+    kpi(t('Leads'),nf.format(d.kpis.leads),delta(d.kpis.leads,d.kpis.leads_prev))+
+    kpi(t('Bookings'),nf.format(d.kpis.bookings),delta(d.kpis.bookings,d.kpis.bookings_prev))+
+    kpi(t('Revenue'),eur.format(d.finance.received),delta(d.finance.received,d.kpis.revenue_prev))+
+    kpi(t('Top campaign (revenue)'),top&&top.revenue>0?`<span style="font-size:15px;line-height:1.25;display:block;margin:6px 0 4px">${esc(top.name)}</span>`:'—',top&&top.revenue>0?`${eur.format(top.revenue)} · ${t('{n} sales',{n:top.sales})}`:t('none'));
+  hbars($('c-leads'),real.filter(c=>c.leads).sort((a,b)=>b.leads-a.leads).map(c=>({name:c.name,n:c.leads})),'var(--s1)');
+  hbars($('c-rev'),real.filter(c=>c.revenue).sort((a,b)=>b.revenue-a.revenue).map(c=>({name:c.name,n:c.revenue})),'var(--s3)',false,v=>eur.format(v));
+  const cols=[['name','Campaign'],['leads','Leads'],['tagged','Tagged (all time)'],['bookings','Bookings'],['showed','Showed'],['noshow','No-show'],['opps','New opps'],['open','Open'],['won','Won'],['lost','Lost'],['sales','Sales'],['revenue','Revenue']];
+  const sorted=[...rows].sort((a,b)=>{const x=a[campSort.k],y=b[campSort.k];if(campSort.k==='name')return campSort.dir*String(x).localeCompare(String(y));return campSort.dir*((x??-1)-(y??-1))});
+  $('ctable').innerHTML=`<table><tr>${cols.map(([k,l])=>`<th class="sort" data-k="${k}">${t(l)}${campSort.k===k?(campSort.dir<0?' ↓':' ↑'):''}</th>`).join('')}</tr>${sorted.map(c=>`<tr><td class="nm" title="${esc(t(c.name))}">${esc(t(c.name))}</td><td>${nf.format(c.leads)}</td><td>${nf.format(c.tagged)}</td><td>${c.bookings}</td><td>${c.showed}</td><td>${c.noshow}</td><td>${c.opps}</td><td>${c.open}</td><td>${c.won}</td><td>${c.lost}</td><td>${c.sales}</td><td>${c.revenue?eur.format(c.revenue):'—'}</td></tr>`).join('')}</table>`;
+  $('ctable').querySelectorAll('th.sort').forEach(th=>th.onclick=()=>{const k=th.dataset.k;campSort=campSort.k===k?{k,dir:-campSort.dir}:{k,dir:k==='name'?1:-1};renderCampaigns(d)});
+  $('cnote').textContent=t('Campaigns are groups of contacts whose GHL tags match the rules in campaigns.json (edit that file to add or rename campaigns). This is tag-based, not ad-click attribution. Meta ad spend is not connected, so there is no cost or ROAS per campaign yet.');
+}
+function renderFinance(d){
+  const f=d.finance,k=d.kpis;
+  $('fkpis').innerHTML=
+    kpi(t('Received'),eur.format(f.received),delta(f.received,k.revenue_prev)+` · ${t('net of refunds')}`)+
+    kpi(t('Gross'),eur.format(f.gross),t('{n} successful payments',{n:f.sales}))+
+    kpi(t('Refunded'),eur.format(f.refunded),t('refunds in period'))+
+    kpi(t('Pending'),eur.format(f.pending),t('{n} payments',{n:f.pending_n}))+
+    kpi(t('Failed'),eur.format(f.failed),t('{n} payments',{n:f.failed_n}))+
+    kpi(t('Avg. ticket'),f.avg_ticket==null?'—':eur.format(f.avg_ticket),t('{n} successful payments',{n:f.sales}));
+  chart($('f-month'),f.monthly,[{key:'amount',label:t('Received'),type:'bar',color:'var(--s3)'}],v=>eur.format(v),monthLbl);
+  chart($('f-day'),d.daily,[{key:'revenue',label:t('Received'),type:'bar',color:'var(--s3)'}],v=>eur.format(v));
+  const PM={paypal:'PayPal',stripe:'Stripe',external:'External',manual:'Manual',payment_link:'Payment link',other:'Other'};
+  hbars($('f-method'),f.methods.map(m=>({name:PM[m.name]||m.name,n:m.amount})),'var(--s1)',false,v=>eur.format(v));
+  $('f-status').innerHTML=statusTable(d);
+  $('f-note').innerHTML=f.old_pending_n?`<div class="note">${t('{n} pending payments older than 7 days, worth {v}.',{n:f.old_pending_n,v:eur.format(f.old_pending)})}</div>`:'';
+  $('prod').innerHTML=d.payments.products.length?`<table><tr><th>${t('Source')}</th><th>${t('Sales')}</th><th>${t('Revenue')}</th></tr>${d.payments.products.map(p=>`<tr><td class="nm" title="${esc(p.name)}">${esc(p.name)}</td><td>${p.sales}</td><td>${eur.format(p.amount)}</td></tr>`).join('')}</table>`:muted('No successful payments in this period.');
+  $('f-top').innerHTML=f.top.length?f.top.map(p=>`<li><span>${esc(p.name)} · ${eur.format(p.amount)}<div class="m">${esc(p.src||'')}</div></span><span class="m">${ago(p.at)}</span></li>`).join(''):`<li class="m">${t('No successful payments in this period.')}</li>`;
+  $('pays').innerHTML=d.payments.recent.map(p=>`<li><span>${esc(p.name)} · ${eur.format(p.amount)}<span class="tag">${esc(t(p.status))}</span><div class="m">${esc(p.src||'')}</div></span><span class="m">${ago(p.at)}</span></li>`).join('');
+}
+function renderPipelines(d){
+  const p=d.pipeline_totals;
+  $('pkpis').innerHTML=
+    kpi(t('Open opportunities'),nf.format(p.open),eur.format(p.open_value)+' '+t('pipeline value'))+
+    kpi(t('Won (period)'),nf.format(p.won),eur.format(p.won_value)+' · '+t('{n} won in total',{n:nf.format(p.won_total)}))+
+    kpi(t('Lost (period)'),nf.format(p.lost),'')+
+    kpi(t('Lost (all time)'),nf.format(p.lost_total),`${nf.format(p.abandoned)} ${t('Abandoned').toLowerCase()}`)+
+    kpi(t('In lost-type stages'),nf.format(p.lost_stage),t('open status, but parked in a “lost / not interested” stage'))+
+    kpi(t('Stale open (>90 d)'),nf.format(p.stale),t('older than 90 days'));
+  hbars($('p-open'),[...d.pipelines].filter(r=>r.open).sort((a,b)=>b.open-a.open).slice(0,10).map(r=>({name:r.name,n:r.open})),'var(--s1)');
+  hbars($('p-lost'),[...d.pipelines].map(r=>({name:r.name,n:r.lost_total+r.lost_stage})).filter(r=>r.n).sort((a,b)=>b.n-a.n).slice(0,10),'var(--s2)');
+  const rows=[...d.pipelines].sort((a,b)=>b.open-a.open);
+  $('pipes').innerHTML=`<table><tr><th>${t('Pipeline')}</th><th>${t('New')}</th><th>${t('Open')}</th><th>${t('Open value')}</th><th>${t('Stale')}</th><th>${t('Won')}</th><th>${t('Won value')}</th><th>${t('Lost')}</th><th>${t('Lost total')}</th><th>${t('Lost stages')}</th><th>${t('Abandoned')}</th></tr>${rows.map(r=>`<tr class="click"><td class="nm">${esc(r.name)}</td><td>${r.new}</td><td>${nf.format(r.open)}</td><td>${r.open_value?eur.format(r.open_value):'—'}</td><td class="${r.stale?'warn':''}">${r.stale}</td><td>${r.won}</td><td>${r.won_value?eur.format(r.won_value):'—'}</td><td>${r.lost}</td><td>${nf.format(r.lost_total)}</td><td>${r.lost_stage}</td><td>${r.abandoned}</td></tr><tr class="st" hidden><td colspan="11" class="stages">${r.stages.map(s=>`<span>${esc(s.name)} <b>${s.n}</b></span>`).join('')}</td></tr>`).join('')}<tr class="tot"><td>Total</td><td>${p.new}</td><td>${nf.format(p.open)}</td><td>${eur.format(p.open_value)}</td><td>${p.stale}</td><td>${p.won}</td><td>${eur.format(p.won_value)}</td><td>${p.lost}</td><td>${nf.format(p.lost_total)}</td><td>${p.lost_stage}</td><td>${p.abandoned}</td></tr></table>`;
+  $('pipes').querySelectorAll('tr.click').forEach(tr=>tr.onclick=()=>{const n=tr.nextElementSibling;n.hidden=!n.hidden});
+}
+function renderContacts(d){
+  const db=d.database;
+  if(!db){$('dkpis').innerHTML=kpi(t('Total contacts'),'…',t('Contact database is still syncing…'));return}
+  const q=db.q,T=Math.max(q.total||0,1),g=k=>q[k]||0;
+  const imp=db.excluding_imports&&db.imports?t('{n} imports excluded',{n:nf.format(db.imports)}):t('all contacts in the sub-account');
+  const wa=g('wa_likely'), noWa=g('total')-wa;
+  $('dkpis').innerHTML=
+    kpi(t('Total contacts'),nf.format(g('total')),imp)+
+    kpi(t('Valid emails'),nf.format(g('email_valid')),`${pct(g('email_valid')/T)} ${t('of contacts')}`)+
+    kpi(t('Missing email'),nf.format(g('email_missing')),`${pct(g('email_missing')/T)} ${t('of contacts')}`)+
+    kpi(t('Valid phone numbers'),nf.format(g('phone_valid')),`${pct(g('phone_valid')/T)} ${t('of contacts')}`)+
+    kpi(t('WhatsApp-ready (est.)'),nf.format(wa),`${pct(wa/T)} ${t('of contacts')}`)+
+    kpi(t('No WhatsApp-capable number'),nf.format(noWa),`${pct(noWa/T)} ${t('of contacts')}`);
+  stackRows($('d-email'),[
+    {label:t('Valid'),n:g('email_valid'),color:'var(--s3)'},
+    {label:t('Likely typo in domain'),n:g('email_typo'),color:'var(--s4)'},
+    {label:t('Flagged bounced / spam'),n:g('email_flagged'),color:'var(--s2)'},
+    {label:t('Malformed address'),n:g('email_malformed'),color:'var(--s5)'},
+    {label:t('Missing'),n:g('email_missing'),color:'var(--none)'},
+    {sep:1,label:''},
+    {label:t('Unsubscribed / opted out'),n:g('email_optout'),color:'var(--ink3)',inbar:false}],T);
+  stackRows($('d-phone'),[
+    {label:t('Valid mobile'),n:g('phone_mobile'),color:'var(--s3)'},
+    {label:t('Valid (type unknown)'),n:g('phone_unknown'),color:'var(--s1)'},
+    {label:t('Valid landline / other'),n:g('phone_landline'),color:'var(--s4)'},
+    {label:t('Invalid: no country code'),n:g('phone_invalid_no_country_code'),color:'var(--s2)'},
+    {label:t('Invalid: wrong length'),n:g('phone_invalid_wrong_length'),color:'var(--s5)'},
+    {label:t('Invalid: not a number'),n:g('phone_invalid_not_a_number'),color:'var(--ink3)'},
+    {label:t('Missing'),n:g('phone_missing'),color:'var(--none)'}],T);
+  stackRows($('d-wa'),[
+    {label:t('Likely WhatsApp-capable'),n:wa,color:'var(--s3)'},
+    {label:t('Landline numbers'),n:g('phone_landline'),color:'var(--s4)'},
+    {label:t('Invalid numbers'),n:g('phone_invalid'),color:'var(--s2)'},
+    {label:t('No phone number'),n:g('phone_missing'),color:'var(--none)'},
+    {sep:1,label:''},
+    {label:t('Confirmed (WhatsApp used)'),n:g('wa_confirmed'),color:'var(--s1)',inbar:false},
+    {label:t('Opted out of WhatsApp'),n:g('wa_optout'),color:'var(--ink3)',inbar:false}],T);
+  $('d-note').textContent=t('Valid = well-formed and not flagged by GHL as bounced or spam; this is not a deliverability check. Phone: format and length per country, no carrier lookup. WhatsApp: GHL can’t verify an account without sending a message, so “likely” means a valid mobile (or unknown-type) number, and “confirmed” counts contacts whose most recent conversation was on WhatsApp (a lower bound).')+' '+t('This view covers the whole database, not the selected period.')+(db.wa_ok?'':' '+t('WhatsApp conversation scan failed, so “confirmed” shows 0.'));
+}
+function renderChrome(d){
+  const k=d.kpis,f=d.finance,p=d.pipeline_totals,db=d.database;
+  $('impn').textContent=d.imported?`(${t('{n} in period',{n:nf.format(d.imported)})})`:'';
+  $('range').textContent=view==='contacts'?'':t('{from} → {to} · Europe/Paris · EUR',{from:d.period.from,to:d.period.to});
+  const chipName=n=>t(n==='Opportunities'?'Opportunities ':n);
+  $('chips').innerHTML=Object.entries(d.sync).map(([n,s])=>`<span class="chip ${s.ok?'':'err'}" title="${esc(s.ok?t('Last sync {ago} · {rows} rows · {ms} ms',{ago:ago(s.last*1000),rows:s.rows,ms:s.ms}):(s.error||t('failed ')))}"><span class="dot"></span>${esc(chipName(n))}</span>`).join('');
+  const real=d.campaigns.filter(c=>c.name!=='(no campaign tag)'&&c.leads>0).length;
+  $('b-overview').textContent=nf.format(k.leads);
+  $('b-campaigns').textContent=nf.format(real);
+  $('b-finance').textContent=eur.format(f.received);
+  $('b-pipelines').textContent=nf.format(p.open);
+  $('b-contacts').textContent=db?nf.format(db.q.total||0):'…';
+  const row=(l,v)=>`<div><span>${l}</span><b>${v}</b></div>`;
+  $('snap').innerHTML=row(t('Contacts in total'),nf.format(k.contacts_total))+row(t('Received (period)'),eur.format(f.received))+row(t('Open pipeline'),eur.format(p.open_value))+row(t('Lost (all time)'),nf.format(p.lost_total));
+}
+function render(d){
+  last=d;
+  renderChrome(d);renderOverview(d);renderCampaigns(d);renderFinance(d);renderPipelines(d);renderContacts(d);
+}
+function setView(v){
+  if(!TITLES[v])v='overview';
+  view=v;document.body.dataset.view=v;
+  document.querySelectorAll('.view').forEach(s=>s.hidden=s.dataset.view!==v);
+  [...$('nav').children].forEach(b=>b.setAttribute('aria-current',b.dataset.v===v?'page':'false'));
+  $('vtitle').textContent=t(TITLES[v]);
+  if(last)$('range').textContent=v==='contacts'?'':t('{from} → {to} · Europe/Paris · EUR',{from:last.period.from,to:last.period.to});
+  try{history.replaceState(null,'','#'+v)}catch(_){}
+  scrollTo(0,0);
+}
+let lastUpd=null;
+const stamp=()=>{if(lastUpd)$('upd').textContent=t('live · updated {t}',{t:lastUpd.toLocaleTimeString(loc())})};
+async function load(){
+  try{
+    const r=await fetch(`/api/data?days=${days}&test=${$('test').checked?1:0}&imp=${$('imp').checked?1:0}`);
+    if(r.status===503){$('upd').textContent=t('first sync running…');return}
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();render(d);
+    $('loading').hidden=true;$('app').hidden=false;$('errb').style.display='none';
+    lastUpd=new Date();stamp();
+    const bad=Object.entries(d.sync).filter(([,s])=>!s.ok);
+    if(bad.length){$('errb').style.display='block';$('errb').textContent=t('Source unavailable, figures may be stale: ')+bad.map(([n,s])=>n+' ('+s.error+')').join('; ')}
+  }catch(e){$('errb').style.display='block';$('errb').textContent=t('Dashboard server unreachable: ')+e.message;$('upd').textContent=t('offline')}
+}
+$('nav').onclick=e=>{const b=e.target.closest('button');if(b)setView(b.dataset.v)};
+$('seg').onclick=e=>{const b=e.target.closest('button');if(!b)return;days=+b.dataset.d;[...$('seg').children].forEach(x=>x.setAttribute('aria-pressed',x===b));load()};
+$('lang').onclick=e=>{const b=e.target.closest('button');if(!b)return;LANG=b.dataset.l;try{localStorage.setItem('lang',LANG)}catch(_){}fmts();applyStatic();$('upd').textContent=t('connecting…');if(last){render(last);stamp()}};
+$('test').onchange=load;$('imp').onchange=load;
+fmts();markStatic();applyStatic();
+setView((location.hash||'').slice(1)||'overview');
+$('upd').textContent=t('connecting…');
+load();timer=setInterval(load,20000);
+addEventListener('hashchange',()=>setView((location.hash||'').slice(1)));
+</script>
+</body>
+</html>
